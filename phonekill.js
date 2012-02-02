@@ -1,99 +1,82 @@
-Ext.define('Kitchensink.view.touchevent.Pad', {
-    extend: 'Ext.Container',
-    xtype: 'toucheventpad',
-    id: 'touchpad',
-    
-    config: {
-        flex: 1,
-        margin: 10,
-        
-        layout: {
-            type: 'vbox',
-            pack: 'center',
-            align: 'stretch'
-        },
-        
-        items: [
-            {
-                html: 'swipe to move'
-            }
-        ]
-    }
-});
+window.onload = function() {
+    (function (ctx) {
+         SWARM.connect({ apikey: '49819bbcc8a3543d1daa5899bd40d1cb230524ff'
+                         , swarms: '53da4a421f6fc57404cf26b094465517806ed5ae'
+                         , resource: '0fe184a9589fc04d293a13df4f4ddfbdc131005d'
+                         , onmessage: function (msg) {
+                             console.log("msg: " + msg);
+                         }
+                         , onpresence: function (pres) {
+                             console.log("presence: " + pres);
+                         }
+                         , onconnect: function (conn) {
+                             self.connected = true;
+                             self.announce();
+                         }
+                         , onerror: function (err) {
+                         }
+                       });
 
-SWARM.connect({ apikey: '49819bbcc8a3543d1daa5899bd40d1cb230524ff'
-                , swarms: '53da4a421f6fc57404cf26b094465517806ed5ae'
-                , resource: '0fe184a9589fc04d293a13df4f4ddfbdc131005d'
-                , onmessage: function (msg) {
-                    console.log("msg: " + msg);
-                }
-                , onpresence: function (pres) {
-                    console.log("presence: " + pres);
-                }
-                , onconnect: function (conn) {
-                }
-                , onerror: function (err) {
-                }
-              });
+         var TouchPad = function(parent) {
+             this.parent = parent;
+             this.toucShtarted = false;
+             this.touchEnd = null;
+         };
 
+         TouchPad.prototype.touchStart = function(evt) {
+             if (!this.touchStarted) {
+                 this.touchStarted = true;
+                 this.touchEnd = this.touchEndFactory(evt.touches[0].pageX, evt.touches[0].pageY);
+             }
+         };
 
-var sendMove = function(move) {
-    SWARM.send({msg_type: "2dmove", move:move});
-}
+         TouchPad.prototype.touchEndFactory = function(x, y) {
+             return function(evt) {
+                 if (this.touchStarted) {
+                     this.touchStarted = false;
+                     console.log("touchEnd");
+                     console.log("from (" + x + "," + y + ") to (" + evt.changedTouches[0].pageX + "," + evt.changedTouches[0].pageY + ")");
+                     this.parent.swipe({x1: x, y1: y, x2: evt.changedTouches[0].pageX, y2: evt.changedTouches[0].pageY});
+                 }
+             };
+         };
 
-var moveTouchStart = null;
+         TouchPad.prototype.getTouchStartHandler = function() {
+             var that = this;
+             return function(evt) {
+                 evt.preventDefault();
+                 that.touchStart(evt);
+             };
+         };
 
-Ext.define('Kitchensink.view.TouchEvents', {
-    extend: 'Ext.Container',
+         TouchPad.prototype.getTouchEndHandler = function() {
+             var that = this;
+             return function(evt) {
+                 evt.preventDefault();
+                 that.touchEnd(evt);
+             };
+         };
 
-    initialize: function() {
-        this.callParent(arguments);
+         var moveSwipe = {
+             swipe: function(data) {
+                 SWARM.send({type:"move_swipe", swipe: data});
+             }
+         };
 
-        this.getEventDispatcher().addListener('element', '#touchpad', '*', this.onTouchPadEvent, this);
-    },
-    
-    onTouchPadEvent: function(a, b, c, d) {
-        var name = d.info.eventName;
+         var killSwipe = {
+             swipe: function(data) {
+                 SWARM.send({type:"kill_swipe", swipe: data});
+             }
+         };
 
-        if (!name.match("mouse") && !name.match("click")) {
-            console.log("" + a.type + " (" + a.pageX + ", " + a.pageY + ")");
-            if (a.type === "touchstart" && moveTouchStart == null) {
-                moveTouchStart = {x: a.pageX, y: a.pageY};
-            } else if (a.type === "touchend" && moveTouchStart) {
-                console.log("move from (" + moveTouchStart.x + "," + moveTouchStart.x + ") to (" + a.pageX + "," + a.pageY + ")");
-                var touchVector = {x: moveTouchStart.x - a.pageX, y: moveTouchStart.y - a.pageY};
-                sendMove(touchVector);
-                moveTouchStart = null;
-            }
-        }
-    }
-});
+         var movePad = new TouchPad(moveSwipe);
+         var killPad = new TouchPad(killSwipe);
 
-Ext.define('Kitchensink.view.tablet.TouchEvents', {
-    extend: 'Kitchensink.view.TouchEvents',
-    xtype: 'touchevents',
-    
-    config: {
-        layout: {
-            type: 'hbox',
-            align: 'stretch'
-        },
-        
-        items: [
-            {
-                xtype: 'toucheventpad',
-                flex: 1
-            }
-        ]
-    }
-});
+         document.getElementById("movepad").addEventListener("touchstart", movePad.getTouchStartHandler(), false);
+         document.getElementById("movepad").addEventListener("touchend", movePad.getTouchEndHandler(), false);
 
-Ext.application({
-    name: 'Kitchensink',
-    launch: function() {
-        Ext.create("Kitchensink.view.tablet.TouchEvents", {
-            fullscreen: true
-        });
-    }
-});
+         document.getElementById("killpad").addEventListener("touchstart", killPad.getTouchStartHandler(), false);
+         document.getElementById("killpad").addEventListener("touchend", killPad.getTouchEndHandler(), false);
 
+     })(window);
+};
