@@ -59,13 +59,13 @@ window.onload = function() {
 
          var moveSwipe = {
              swipe: function(data) {
-                 SWARM.send({type:"move_swipe", swipe: data});
+                 SWARM.send({msg_type:"move_swipe", swipe: data});
              }
          };
 
          var killSwipe = {
              swipe: function(data) {
-                 SWARM.send({type:"kill_swipe", swipe: data});
+                 SWARM.send({msg_type:"kill_swipe", swipe: data});
              }
          };
 

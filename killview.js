@@ -1,4 +1,128 @@
 (function (ctx) {
+     var ticker = {
+         tickList: [],
+         lastTime: new Date().getTime(),
+         running: false,
+         addHandler: function(handler) {
+             ticker.tickList.push(handler);
+         },
+         tick: function() {
+             if (ticker.running) {
+                 var currentTime = new Date().getTime();
+                 setTimeout(ticker.tick, ticker.interval);
+                 var elapsedTime = (currentTime - ticker.lastTime);
+                 ticker.lastTime = currentTime;
+
+                 for (var x = 0; x < ticker.tickList.length; x++) {
+                     ticker.tickList[x].tick(elapsedTime);
+                 }
+             }
+         },
+         start: function(interval) {
+             ticker.interval = interval;
+             if (ticker.running === false) {
+                 ticker.running = true;
+                 setTimeout(ticker.tick, ticker.interval);
+             }
+         },
+         stop: function() {
+             ticker.running = false;
+         }
+     };
+
+     var onlybullet = {
+         x: -5,
+         y: -5,
+         currentVelocityX: 0,
+         currentVelocityY: 0,
+         normalizeMove: function(move) {
+             var magnitude = Math.sqrt(Math.pow(move.x, 2) + Math.pow(move.y, 2));
+             if (magnitude === 0) {
+                 return {x: 0, y:0};
+             }
+             return {x: move.x / magnitude, y: move.y / magnitude};
+         },
+         setVelocity: function(move) {
+             console.log("setVelocity: " + move.x + "," + move.y);
+             onlybullet.x = onlyone.x + 5;
+             onlybullet.y = onlyone.y + 5;
+             var normalizedMove = this.normalizeMove(move);
+             onlybullet.currentVelocityX = normalizedMove.x * 200 / 1000;
+             onlybullet.currentVelocityY = normalizedMove.y * 200 / 1000;
+         },
+         tick:function(elapsed) {
+             // console.log("moving at " + elapsed);
+             // console.log("current velocity: (" + onlyone.currentVelocityX + "," + onlyone.currentVelocityY + ")");
+
+             var element = document.getElementById("onlybullet");
+
+             onlybullet.x += (onlybullet.currentVelocityX * elapsed);
+             onlybullet.y += (onlybullet.currentVelocityY * elapsed);
+
+             element.style.top = "" + onlybullet.y + "px";
+             element.style.left = "" + onlybullet.x + "px";
+         }
+     };
+
+     var onlyone = {
+         x: 0,
+         y: 0,
+         // currentVelocityX: 20 / 1000, // px / s
+         // currentVelocityY: 20 / 1000, // px / s
+         currentVelocityX: 0,
+         currentVelocityY: 0,
+         normalizeMove: function(move) {
+             var magnitude = Math.sqrt(Math.pow(move.x, 2) + Math.pow(move.y, 2));
+             if (magnitude === 0) {
+                 return {x: 0, y:0};
+             }
+             return {x: move.x / magnitude, y: move.y / magnitude};
+         },
+         setVelocity: function(move) {
+             console.log("setVelocity: " + move.x + "," + move.y);
+             var normalizedMove = this.normalizeMove(move);
+             onlyone.currentVelocityX = normalizedMove.x * 100 / 1000;
+             onlyone.currentVelocityY = normalizedMove.y * 100 / 1000;
+         },
+         tick:function(elapsed) {
+             // console.log("moving at " + elapsed);
+             // console.log("current velocity: (" + onlyone.currentVelocityX + "," + onlyone.currentVelocityY + ")");
+
+             var element = document.getElementById("onlyone");
+             if (onlyone.x > (1000 - 20)) {
+                 onlyone.currentVelocityX = 0;
+                 onlyone.currentVelocityY = 0;
+                 onlyone.x = 1000 - 20;
+             } else if (onlyone.x < 0) {
+                 onlyone.currentVelocityX = 0;
+                 onlyone.currentVelocityY = 0;
+                 onlyone.x = 0;
+             } else {
+                 onlyone.x += (onlyone.currentVelocityX * elapsed);
+             }
+
+             if (onlyone.y > (600 - 20)) {
+                 onlyone.currentVelocityX = 0;
+                 onlyone.currentVelocityY = 0;
+                 onlyone.y = 600 - 20;
+             } else if (onlyone.y < 0) {
+                 onlyone.currentVelocityX = 0;
+                 onlyone.currentVelocityY = 0;
+                 onlyone.y = 0;
+             } else {
+                 onlyone.y += (onlyone.currentVelocityY * elapsed);
+             }
+
+             element.style.top = "" + onlyone.y + "px";
+             element.style.left = "" + onlyone.x + "px";
+         }
+     };
+
+     ticker.addHandler(onlyone);
+     ticker.addHandler(onlybullet);
+
+     ticker.start(16);
+
      var Player = function(id) {
          this.id = id;
          this.location = 0;
@@ -6,6 +130,18 @@
          this.deaths = 0;
          this.onTopOfMe = null;
          this.underMe = null;
+     };
+
+     var handleMoveSwipe = function(player, moveSwipe) {
+         console.log("handleMoveSwipe");
+
+         onlyone.setVelocity({x: moveSwipe.x2 - moveSwipe.x1, y: moveSwipe.y2 - moveSwipe.y1});
+     };
+
+     var handleKillSwipe = function(player, moveSwipe) {
+         console.log("handleMoveSwipe");
+
+         onlybullet.setVelocity({x: moveSwipe.x2 - moveSwipe.x1, y: moveSwipe.y2 - moveSwipe.y1});
      };
 
      var handleMove = function(player) {
@@ -110,6 +246,10 @@
                                  } else if (msg.payload.msg_type === "kill") {
                                      console.log("kill from: " + msg.from.resource);
                                      handleKill(players["" + msg.from.resource]);
+                                 } else if (msg.payload.msg_type === "move_swipe") {
+                                     handleMoveSwipe(players["" + msg.from.resource], msg.payload.swipe);
+                                 } else if (msg.payload.msg_type === "kill_swipe") {
+                                     handleKillSwipe(players["" + msg.from.resource], msg.payload.swipe);
                                  }
                                  redraw();
                              }
